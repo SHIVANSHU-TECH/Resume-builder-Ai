@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resume Builder | Craft Your Perfect Resume</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div id="progress-container" style="display: none;">
+        <div id="progress-bar"></div>
+        <div id="progress-text">0%</div>
+    </div>
+    
+    <div class="container animate__animated animate__fadeIn">
+        <div class="header">
+            <h1>Resume Builder</h1>
+            <div class="subtitle">Craft your perfect professional resume</div>
+        </div>
+        
+        <div id="start" class="start-screen animate__animated animate__zoomIn">
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-icon">✨</div>
+                    <div class="feature-text">AI-powered suggestions</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📝</div>
+                    <div class="feature-text">Guided step-by-step process</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-text">Tailored for your dream job</div>
+                </div>
+            </div>
+            <div class="button-wrapper-start">
+                <button id="start-btn" class="cta-button pulse-animation">
+                    Get Started <span class="arrow">→</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="prompt-area" style="display: none;">
+            <div class="prompt-card">
+                <div class="prompt-header">
+                    <div class="step-indicator">Step <span id="current-step">1</span>/10</div>
+                    <p id="context-text" class="context-text"></p>
+                </div>
+                
+                <div id="suggestion-text" style="display:none;"></div>
+                
+                <label id="prompt-label" for="user-input" class="prompt-label"></label>
+                <textarea id="user-input" rows="4" placeholder="Type your response here..."></textarea>
+                
+                <div class="button-wrapper">
+                    <button id="back-btn" style="display:none;" class="secondary-button">
+                        ← Back
+                    </button>
+                    <button id="skip-btn" style="display:none;" class="secondary-button">
+                        Analyze
+                    </button>
+                    <button id="next-btn" class="primary-button">
+                        Continue <span class="arrow">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="completion-message" style="display:none;" class="animate__animated animate__zoomIn">
+            <div class="completion-card">
+                <div class="celebration">🎉</div>
+                <h2>Your Resume is Ready!</h2>
+                <p class="completion-text">You've completed all the steps. Preview your professional resume now.</p>
+                <button id="preview-btn" class="cta-button pulse-animation">
+                    Preview Resume
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animation for the start button
+            const startBtn = document.getElementById('start-btn');
+            startBtn.addEventListener('mouseenter', function() {
+                gsap.to(this, { scale: 1.05, duration: 0.3 });
+            });
+            startBtn.addEventListener('mouseleave', function() {
+                gsap.to(this, { scale: 1, duration: 0.3 });
+            });
+
+            // Initialize elements
+            const userId = 'user' + Math.floor(Math.random() * 10000);
+            let currentStep = 1;
+            let savedResponses = {};
+            let currentPrompt = null;
+
+            // Start button click handler
+            document.getElementById('start-btn').addEventListener('click', function() {
+                gsap.to('#start', { 
+                    opacity: 0, 
+                    y: -20, 
+                    duration: 0.5, 
+                    onComplete: function() {
+                        document.getElementById('start').style.display = 'none';
+                        document.getElementById('prompt-area').style.display = 'block';
+                        document.getElementById('progress-container').style.display = 'flex';
+                        gsap.from('#prompt-area', { opacity: 0, y: 20, duration: 0.5 });
+                    }
+                });
+            });
+
+            // Progress bar update function
+            function updateProgressBar() {
+                const totalSteps = 10;
+                let progressPercent;
+                
+                if (currentStep > totalSteps) {
+                    progressPercent = 100;
+                } else {
+                    progressPercent = ((currentStep - 1) / totalSteps) * 100;
+                }
+                
+                gsap.to('#progress-bar', {
+                    width: progressPercent + '%',
+                    duration: 0.5,
+                    ease: 'power2.out'
+                });
+                
+                document.getElementById('progress-text').innerText = Math.round(progressPercent) + '%';
+                document.getElementById('current-step').innerText = currentStep;
+            }
+
+            // Load prompt function
+            async function loadPrompt(step) {
+                document.getElementById('suggestion-text').style.display = 'none';
+                const res = await fetch(`/api/prompt/${step}`);
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    currentPrompt = data;
+                    
+                    // Animate the prompt change
+                    gsap.from('#prompt-label, #user-input', {
+                        opacity: 0,
+                        x: -10,
+                        duration: 0.3,
+                        stagger: 0.1
+                    });
+                    
+                    document.getElementById('prompt-label').innerText = data.prompt;
+                    document.getElementById('context-text').innerText = data.context;
+                    document.getElementById('user-input').value = savedResponses[data.field] || '';
+                    
+                    // Clear previous event listener and add new one
+                    const userInput = document.getElementById('user-input');
+                    userInput.replaceWith(userInput.cloneNode(true));
+                    document.getElementById('user-input').addEventListener('input', (e) => {
+                        suggestImprovements(currentPrompt.field, e.target.value);
+                    });
+
+                    updateProgressBar();
+
+                    // Show/hide back button
+                    if (step > 1) {
+                        document.getElementById('back-btn').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('back-btn').style.display = 'none';
+                    }
+                    
+                    // Configure skip/analyze button
+                    const skipBtn = document.getElementById('skip-btn');
+                    if (data.field === "summary" || data.field === "skills" || data.field === "projects") {
+                        skipBtn.style.display = 'inline-block';
+                        if (data.field === "summary" || data.field === "projects") {
+                            skipBtn.innerText = "Paraphrase";
+                        } else if (data.field === "skills") {
+                            skipBtn.innerText = "Suggest Skills";
+                        }
+                    } else {
+                        skipBtn.style.display = 'none';
+                    }
+                } else {
+                    alert("No more prompts.");
+                }
+            }
+
+            // Suggestion functions
+            async function getSuggestions(field, value) {
+                if (field === "summary") {
+                    if (!value) {
+                        showAlert("Please enter your response first.");
+                        return;
+                    }
+                    const res = await fetch(`/api/suggestion/${value}`);
+                    return await res.text();
+                }
+
+                if (field === "skills") {
+                    const jobd = savedResponses['jobd'] || "";
+                    const res = await fetch('/api/suggestionskill', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ jobd: jobd })
+                    }); 
+                    return await res.text();
+                }
+
+                if (field === "projects") {
+                    if (!value) {
+                        showAlert("Please enter your response first.");
+                        return;
+                    }
+                    const res = await fetch(`/api/suggestionproject/${value}`);
+                    return await res.text();
+                }
+
+                return "";
+            }
+
+            function showAlert(message) {
+                const alertEl = document.createElement('div');
+                alertEl.className = 'alert-message';
+                alertEl.textContent = message;
+                document.body.appendChild(alertEl);
+                
+                gsap.fromTo(alertEl, 
+                    { y: 20, opacity: 0 },
+                    { y: 0, opacity: 1, duration: 0.3 }
+                );
+                
+                setTimeout(() => {
+                    gsap.to(alertEl, {
+                        y: -20,
+                        opacity: 0,
+                        duration: 0.3,
+                        onComplete: () => alertEl.remove()
+                    });
+                }, 3000);
+            }
+
+            // Save response function
+            async function saveResponse(field, response) {
+                await fetch('/api/save_response', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({user_id: userId, field: field, response: response})
+                });
+                savedResponses[field] = response;
+            }
+
+            // Next button click handler
+            document.getElementById('next-btn').addEventListener('click', async () => {
+                const userInput = document.getElementById('user-input').value.trim();
+                
+                if (!userInput) {
+                    showAlert("Please enter your response before continuing.");
+                    return;
+                }
+
+                if (!currentPrompt) {
+                    showAlert("No prompt loaded. Please refresh the page.");
+                    return;
+                }
+                
+                await saveResponse(currentPrompt.field, userInput);
+                currentStep++;
+                
+                // Animate transition to next step
+                gsap.to('#prompt-area', {
+                    opacity: 0,
+                    y: -20,
+                    duration: 0.3,
+                    onComplete: loadPromptOrComplete
+                });
+            });
+
+            // Skip/Analyze button click handler
+            document.getElementById('skip-btn').addEventListener('click', async () => {
+                const userInput = document.getElementById('user-input').value.trim();
+                const suggestionEl = document.getElementById('suggestion-text');
+                
+                if (!currentPrompt) return;
+                
+                if ((currentPrompt.field === "summary" || currentPrompt.field === "projects") && !userInput) {
+                    showAlert("Please enter your response first.");
+                    return;
+                }
+                
+                suggestionEl.innerHTML = '<div class="loading-dots">Analyzing<span>.</span><span>.</span><span>.</span></div>';
+                suggestionEl.style.display = 'block';
+                
+                const suggestions = await getSuggestions(currentPrompt.field, userInput);
+                
+                if (suggestions) {
+                    suggestionEl.innerHTML = suggestions;
+                    gsap.from(suggestionEl, {
+                        opacity: 0,
+                        y: 10,
+                        duration: 0.3
+                    });
+                } else {
+                    suggestionEl.style.display = 'none';
+                }
+            });
+
+            // Back button click handler
+            document.getElementById('back-btn').addEventListener('click', async () => {
+                if (currentStep > 1) {
+                    currentStep--;
+                    gsap.to('#prompt-area', {
+                        opacity: 0,
+                        x: 20,
+                        duration: 0.3,
+                        onComplete: function() {
+                            loadPrompt(currentStep);
+                            gsap.from('#prompt-area', {
+                                opacity: 0,
+                                x: -20,
+                                duration: 0.3
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Preview button click handler
+            document.getElementById('preview-btn').addEventListener('click', () => {
+                window.location.href = `/preview/${userId}`;
+            });
+
+            // Function to handle completion or load next prompt
+            function loadPromptOrComplete() {
+                if (currentStep > 10) {
+                    document.getElementById('prompt-area').style.display = 'none';
+                    document.getElementById('completion-message').style.display = 'block';
+                    gsap.to('#progress-bar', { backgroundColor: '#4CAF50', duration: 0.5 });
+                    
+                    // Celebration animation
+                    gsap.from('.celebration', {
+                        scale: 0,
+                        rotation: 360,
+                        duration: 1,
+                        ease: 'elastic.out(1, 0.5)'
+                    });
+                } else {
+                    loadPrompt(currentStep);
+                    gsap.to('#prompt-area', {
+                        opacity: 1,
+                        y: 0,
+                        duration: 0.3
+                    });
+                }
+            }
+
+            // Initialize first prompt
+            loadPrompt(currentStep);
+        });
+    </script>
+</body>
+</html>
