@@ -54,7 +54,7 @@
                 <div id="suggestion-text" style="display:none;"></div>
                 
                 <label id="prompt-label" for="user-input" class="prompt-label"></label>
-                <textarea id="user-input" rows="4" placeholder="Type your response here..."></textarea>
+                <textarea id="user-input" rows="4" placeholder="Type your response here..." autofocus></textarea>
                 
                 <div class="button-wrapper">
                     <button id="back-btn" style="display:none;" class="secondary-button">
@@ -136,6 +136,12 @@
                 document.getElementById('current-step').innerText = currentStep;
             }
 
+
+            function suggestImprovements(field, value) {
+              // You can implement real-time suggestions here if needed
+             // Currently just saves the value as user types
+            savedResponses[field] = value;
+}
             // Load prompt function
             async function loadPrompt(step) {
                 document.getElementById('suggestion-text').style.display = 'none';
@@ -159,12 +165,10 @@
                     
                     // Clear previous event listener and add new one
                     const userInput = document.getElementById('user-input');
-                    userInput.replaceWith(userInput.cloneNode(true));
-                    document.getElementById('user-input').addEventListener('input', (e) => {
+                    userInput.value = savedResponses[data.field] || '';
+                    userInput.addEventListener('input', (e) => {
                         suggestImprovements(currentPrompt.field, e.target.value);
                     });
-
-                    updateProgressBar();
 
                     // Show/hide back button
                     if (step > 1) {
@@ -336,6 +340,7 @@
 
             // Function to handle completion or load next prompt
             function loadPromptOrComplete() {
+                updateProgressBar();
                 if (currentStep > 10) {
                     document.getElementById('prompt-area').style.display = 'none';
                     document.getElementById('completion-message').style.display = 'block';
@@ -360,6 +365,7 @@
 
             // Initialize first prompt
             loadPrompt(currentStep);
+            updateProgressBar(); 
         });
     </script>
 </body>
