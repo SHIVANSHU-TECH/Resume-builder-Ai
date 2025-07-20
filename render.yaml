@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: flask-resume-builder
+    env: python
+    region: oregon  # You can change this to 'frankfurt' if you're in Europe
+    plan: free
+    branch: main  # Change this if your branch name is different
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    autoDeploy: true
+
+    envVars:
+      - key: API_KEY
+        sync: false
